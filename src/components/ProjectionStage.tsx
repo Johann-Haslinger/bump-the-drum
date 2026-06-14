@@ -1,14 +1,36 @@
+import { useEffect, useRef } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import surfaceBackgroundImage from "../assets/background.png";
 import enemyDefaultImage from "../assets/enemy-default.png";
 import enemyHitImage from "../assets/enemy-hit.png";
 import friendDefaultImage from "../assets/friend-default.png";
 import friendHitImage from "../assets/friend-hit.png";
 import punchCoronaImage from "../assets/punch-corona.png";
+import failureSound from "../assets/sounds/failure.mp3";
+import punchSound0 from "../assets/sounds/punch0.mp3";
+import punchSound1 from "../assets/sounds/punch1.mp3";
+import punchSound2 from "../assets/sounds/punch2.mp3";
+import punchSound3 from "../assets/sounds/punch3.mp3";
+import punchSound4 from "../assets/sounds/punch4.mp3";
+import punchSound5 from "../assets/sounds/punch5.mp3";
+import punchSound6 from "../assets/sounds/punch6.mp3";
+import punchSound7 from "../assets/sounds/punch7.mp3";
+import punchSound8 from "../assets/sounds/punch8.mp3";
 import { useSessionStore } from "../stores/sessionStore";
 import type { HitFeedback } from "../stores/sessionStore";
 import type { DrumSurface, InteractionType } from "../types";
+
+const punchSounds = [
+  punchSound0,
+  punchSound1,
+  punchSound2,
+  punchSound3,
+  punchSound4,
+  punchSound5,
+  punchSound6,
+  punchSound7,
+  punchSound8,
+];
 
 type ProjectionStageProps = {
   isEditMode: boolean;
@@ -47,6 +69,18 @@ export function ProjectionStage({
   const remainingSeconds = useSessionStore((state) => state.remainingSeconds);
   const mainSurfaceId =
     surfaces.find((surface) => surface.isMain)?.id ?? surfaces[0]?.id;
+  const playedHitIdsRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    for (const hit of activeHits) {
+      if (playedHitIdsRef.current.has(hit.id)) {
+        continue;
+      }
+
+      playedHitIdsRef.current.add(hit.id);
+      playHitSound(hit.kind);
+    }
+  }, [activeHits]);
 
   return (
     <section
@@ -79,7 +113,7 @@ export function ProjectionStage({
           ? `${surface.id}-${targetKind}`
           : undefined;
         const surfaceClassName = [
-          "absolute left-0 top-0 flex touch-none select-none flex-col items-center justify-center overflow-hidden rounded-[999px] border-2 text-center shadow-2xl transition-colors duration-100",
+          "absolute bg-black left-0 top-0 flex touch-none select-none flex-col items-center justify-center overflow-hidden rounded-[999px] border-2 text-center shadow-2xl transition-colors duration-100",
           isEditMode ? "cursor-move" : "cursor-pointer",
           isSelected
             ? "bg-white/5  ring-4 ring-cyan-300/30"
@@ -111,21 +145,12 @@ export function ProjectionStage({
               onSurfaceHit(surface);
             }}
             style={{
-              backgroundImage: `url(${surfaceBackgroundImage})`,
-              backgroundPositionY: "center",
-              backgroundRepeat: "repeat-x",
-              backgroundSize: "auto 100%",
+            backgroundColor: "black",
               height: surface.height,
               transform: `translate(${surface.x}px, ${surface.y}px) rotate(${surface.rotation}deg)`,
               width: surface.width,
             }}
-            transition={{
-              backgroundPositionX: {
-                duration: 24,
-                ease: "linear",
-                repeat: Infinity,
-              },
-            }}
+          
           >
             <div className="pointer-events-none absolute left-1/2 top-[60%] z-10 h-[96%] w-[96%] -translate-x-1/2 -translate-y-1/2">
               <AnimatePresence initial={false} mode="wait">
@@ -381,6 +406,18 @@ function getTargetImage(kind: "enemy" | "friend", isHit?: boolean) {
   }
 
   return isHit ? friendHitImage : friendDefaultImage;
+}
+
+function playHitSound(kind: HitFeedback["kind"]) {
+  const sound =
+    kind === "enemy"
+      ? punchSounds[Math.floor(Math.random() * punchSounds.length)]
+      : failureSound;
+  const audio = new Audio(sound);
+
+  void audio.play().catch(() => {
+    // Browsers can reject playback when audio is blocked by user settings.
+  });
 }
 
 function PixiLikeText({
