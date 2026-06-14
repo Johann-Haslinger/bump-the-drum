@@ -30,7 +30,7 @@ export function loadSurfaces() {
       return [];
     }
 
-    return parsed.map((surface) => {
+    return normalizeMainSurface(parsed).map((surface) => {
       const size = surface.width ?? surface.height;
 
       return {
@@ -51,8 +51,20 @@ export function loadMode(): AppMode {
 
 export function serializeSurfaces(surfaces: DrumSurface[]) {
   return surfaces.map(
-    ({ id, name, x, y, width, height, rotation, midiNote, midiChannel }) => ({
+    ({
       id,
+      isMain,
+      name,
+      x,
+      y,
+      width,
+      height,
+      rotation,
+      midiNote,
+      midiChannel,
+    }) => ({
+      id,
+      isMain,
       name,
       x,
       y,
@@ -63,4 +75,14 @@ export function serializeSurfaces(surfaces: DrumSurface[]) {
       midiChannel,
     }),
   );
+}
+
+function normalizeMainSurface(surfaces: DrumSurface[]) {
+  const mainSurfaceIndex = surfaces.findIndex((surface) => surface.isMain);
+
+  return surfaces.map((surface, index) => ({
+    ...surface,
+    isMain:
+      mainSurfaceIndex === -1 ? index === 0 : index === mainSurfaceIndex,
+  }));
 }

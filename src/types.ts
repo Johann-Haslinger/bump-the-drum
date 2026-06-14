@@ -3,6 +3,7 @@ export type AppMode = "edit" | "game";
 export type DrumSurface = {
   id: string;
   name: string;
+  isMain?: boolean;
   x: number;
   y: number;
   width: number;

@@ -11,6 +11,7 @@ export function createSurfaceId() {
 export function createDrumSurface(count: number): DrumSurface {
   return {
     id: createSurfaceId(),
+    isMain: count === 0,
     name: createSurfaceName(count),
     x: 320 + count * 24,
     y: 220 + count * 18,

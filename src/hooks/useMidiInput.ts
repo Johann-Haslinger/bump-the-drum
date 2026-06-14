@@ -10,6 +10,7 @@ type UseMidiInputOptions = {
   learningSurfaceId: string | null;
   setLearningSurfaceId: Dispatch<SetStateAction<string | null>>;
   mode: AppMode;
+  onSurfaceHit: (surface: DrumSurface) => void;
 };
 
 function getFirstMidiInput(midiAccess: MIDIAccess) {
@@ -28,10 +29,12 @@ export function useMidiInput({
   learningSurfaceId,
   setLearningSurfaceId,
   mode,
+  onSurfaceHit,
 }: UseMidiInputOptions) {
   const surfacesRef = useRef<DrumSurface[]>([]);
   const learningSurfaceIdRef = useRef<string | null>(null);
   const modeRef = useRef<AppMode>(mode);
+  const onSurfaceHitRef = useRef(onSurfaceHit);
 
   const [inputName, setInputName] = useState("Kein Input gefunden");
   const [events, setEvents] = useState<MidiEvent[]>([]);
@@ -47,6 +50,10 @@ export function useMidiInput({
   useEffect(() => {
     modeRef.current = mode;
   }, [mode]);
+
+  useEffect(() => {
+    onSurfaceHitRef.current = onSurfaceHit;
+  }, [onSurfaceHit]);
 
   useEffect(() => {
     let activeInput: MIDIInput | undefined;
@@ -75,6 +82,7 @@ export function useMidiInput({
       setInputName(input.name ?? "Unbekannter MIDI Input");
 
       input.onmidimessage = (message: MIDIMessageEvent) => {
+        console.log(message);
         const data = Array.from(message.data ?? []);
         const [status = 0, note = 0, velocity = 0] = data;
         const command = status & 0xf0;
@@ -96,8 +104,12 @@ export function useMidiInput({
         );
         const matchedSurfaceId = learningId ?? matchedSurface?.id;
 
-        if (!learningId && modeRef.current === "game" && matchedSurface) {
-          console.log(matchedSurface.name);
+        if (
+          !learningId &&
+          modeRef.current === "game" &&
+          matchedSurface
+        ) {
+          onSurfaceHitRef.current(matchedSurface);
         }
 
         setSurfaces((current) =>

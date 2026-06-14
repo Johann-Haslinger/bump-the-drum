@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, RefObject, SetStateAction } from "react";
-import { ControlPanel } from "./components/ControlPanel";
+import { ControlPanel } from "./components/control-panel";
 import { ProjectionStage } from "./components/ProjectionStage";
 import { useMidiInput } from "./hooks/useMidiInput";
+import { useSessionEventsStream } from "./hooks/useSessionEventsStream";
 import { useSurfaceInteractions } from "./hooks/useSurfaceInteractions";
+import { useSessionStore } from "./stores/sessionStore";
 import { createDrumSurface } from "./surfaces";
 import {
   MODE_STORAGE_KEY,
@@ -18,11 +20,14 @@ const initialSurfaces = loadSurfaces();
 
 export default function App() {
   const stageRef = useRef<HTMLDivElement>(null);
+  useSessionEventsStream();
+
   const {
     addSurface,
     events,
     handleModeChange,
     handlePointerMove,
+    handleSurfaceHit,
     inputName,
     isEditMode,
     learningSurfaceId,
@@ -30,6 +35,7 @@ export default function App() {
     removeMidiMapping,
     selectedSurface,
     selectedSurfaceId,
+    setMainSurface,
     setSelectedSurfaceId,
     startInteraction,
     startLearning,
@@ -49,6 +55,7 @@ export default function App() {
         onModeChange={handleModeChange}
         onRemoveMidiMapping={removeMidiMapping}
         onSelectSurface={setSelectedSurfaceId}
+        onSetMainSurface={setMainSurface}
         onStartLearning={startLearning}
         selectedSurface={selectedSurface}
         selectedSurfaceId={selectedSurfaceId}
@@ -62,6 +69,7 @@ export default function App() {
         onPointerMove={handlePointerMove}
         onPointerStop={stopInteraction}
         onStartInteraction={startInteraction}
+        onSurfaceHit={handleSurfaceHit}
         selectedSurfaceId={selectedSurfaceId}
         stageRef={stageRef}
         surfaces={surfaces}
@@ -87,9 +95,41 @@ function useDrumEditor(stageRef: RefObject<HTMLDivElement | null>) {
   const isEditMode = mode === "edit";
 
   const updateSurface = useSurfaceUpdater(setSurfaces);
+  const handleSurfaceHit = useCallback(
+    (surface: DrumSurface) => {
+      if (mode !== "game") {
+        return;
+      }
+
+      const surfaceNumber =
+        surfaces.findIndex((currentSurface) => currentSurface.id === surface.id) +
+        1;
+
+      if (surfaceNumber <= 0) {
+        return;
+      }
+
+      const sessionState = useSessionStore.getState();
+
+      if (sessionState.isActive && sessionState.isIntroComplete) {
+        sessionState.handleSurfaceHit(surfaceNumber);
+      }
+
+      const now = Date.now();
+      setSurfaces((current) =>
+        current.map((currentSurface) =>
+          currentSurface.id === surface.id
+            ? { ...currentSurface, lastHitAt: now }
+            : currentSurface,
+        ),
+      );
+    },
+    [mode, surfaces],
+  );
   const { events, inputName } = useMidiInput({
     learningSurfaceId,
     mode,
+    onSurfaceHit: handleSurfaceHit,
     setLearningSurfaceId,
     setSurfaces,
     surfaces,
@@ -123,6 +163,15 @@ function useDrumEditor(stageRef: RefObject<HTMLDivElement | null>) {
     });
   };
 
+  const setMainSurface = (surfaceId: string) => {
+    setSurfaces((current) =>
+      current.map((surface) => ({
+        ...surface,
+        isMain: surface.id === surfaceId,
+      })),
+    );
+  };
+
   const handleModeChange = (nextMode: AppMode) => {
     setMode(nextMode);
     setLearningSurfaceId(null);
@@ -144,6 +193,7 @@ function useDrumEditor(stageRef: RefObject<HTMLDivElement | null>) {
     events,
     handleModeChange,
     handlePointerMove,
+    handleSurfaceHit,
     inputName,
     isEditMode,
     learningSurfaceId,
@@ -151,6 +201,7 @@ function useDrumEditor(stageRef: RefObject<HTMLDivElement | null>) {
     removeMidiMapping,
     selectedSurface,
     selectedSurfaceId,
+    setMainSurface,
     setSelectedSurfaceId,
     startInteraction,
     startLearning,
